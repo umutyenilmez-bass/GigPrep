@@ -37,7 +37,6 @@
     .header { padding: 16px 20px; padding-top: calc(16px + env(safe-area-inset-top)); display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); background: rgba(15,15,16,0.95); z-index: 100; flex-shrink: 0; }
     @media(max-width: 450px) {
         .header { padding: 12px 12px; padding-top: calc(12px + env(safe-area-inset-top)); }
-        .header-logo-text { display: none !important; }
     }
     .header-title { font-family: 'FrizQuadrata', serif; font-size: 22px; letter-spacing: 1px; color: var(--text); }
     .header-title span { color: var(--accent); }
@@ -125,14 +124,15 @@
 <body>
   <header class="header">
     <div class="header-title" style="display: flex; align-items: center; gap: 10px; overflow: visible;">
-      <img src="logo.png?v=2" alt="Logo" style="height: 32px; width: 32px; object-fit: contain; border-radius: 4px; display: block;">
       <div class="header-logo-text" style="line-height: 1;">GIG<span>PREP</span></div>
     </div>
     <div class="header-actions" style="display:flex; gap:6px; align-items:center;">
       <button id="btn-undo" onclick="undo()" style="background:transparent; color:var(--text-2); border:none; padding:0; height:36px; width:36px; border-radius:18px; display:flex; align-items:center; justify-content:center; font-size:18px; cursor:pointer; transition:all 0.2s; opacity:0.3; pointer-events:none;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'" title="Geri Al">↩️</button>
       <button id="btn-redo" onclick="redo()" style="background:transparent; color:var(--text-2); border:none; padding:0; height:36px; width:36px; border-radius:18px; display:flex; align-items:center; justify-content:center; font-size:18px; cursor:pointer; transition:all 0.2s; opacity:0.3; pointer-events:none;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'" title="İleri Al">↪️</button>
       <button onclick="openSettingsModal()" style="background:transparent; color:var(--text-2); border:none; padding:0; height:36px; width:36px; border-radius:18px; display:flex; align-items:center; justify-content:center; font-size:18px; cursor:pointer; transition:all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'" title="Ayarlar">⚙️</button>
-      <button onclick="openBulkModal()" style="background:transparent; color:var(--text-2); border:none; padding:0; height:36px; width:36px; border-radius:18px; display:flex; align-items:center; justify-content:center; font-size:18px; cursor:pointer; transition:all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'" title="Toplu Ekle">📋</button>
+      <button onclick="openBulkModal()" style="background:transparent; color:var(--text-2); border:none; padding:0; height:36px; width:36px; border-radius:18px; display:flex; align-items:center; justify-content:center; font-size:18px; cursor:pointer; transition:all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'" title="Toplu Ekle">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M14 10H3v2h11v-2zm0-4H3v2h11V6zm4 8v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zM3 16h7v-2H3v2z"/></svg>
+      </button>
       <button class="btn-add" onclick="openModal()" style="margin-left:4px;">+</button>
     </div>
   </header>
@@ -399,44 +399,75 @@
     }
 
     let dragScrollAnimation = null;
-    let dragScrollVelocity = 0;
+    let dragScrollVelocityX = 0;
+    let dragScrollVelocityY = 0;
     
     document.addEventListener('dragover', (e) => {
         if (window.innerWidth >= 768) return;
         
         const x = e.clientX || (e.touches && e.touches.length ? e.touches[0].clientX : 0);
-        if (!x) return;
+        const y = e.clientY || (e.touches && e.touches.length ? e.touches[0].clientY : 0);
+        if (!x || !y) return;
         
-        const edgeSize = window.innerWidth * 0.25; 
-        
-        if (x < edgeSize) {
-            dragScrollVelocity = ((edgeSize - x) / edgeSize) * 25; 
-        } else if (x > window.innerWidth - edgeSize) {
-            dragScrollVelocity = -(((x - (window.innerWidth - edgeSize)) / edgeSize) * 25);
+        const edgeSizeX = window.innerWidth * 0.25; 
+        const edgeSizeY = 120;
+        const menuHeight = 70; // safe area bottom usually around 70-80px
+
+        // Horizontal Edge Scroll (Disable if over bottom menu)
+        if (y < window.innerHeight - menuHeight) {
+            if (x < edgeSizeX) {
+                dragScrollVelocityX = ((edgeSizeX - x) / edgeSizeX) * 25; 
+            } else if (x > window.innerWidth - edgeSizeX) {
+                dragScrollVelocityX = -(((x - (window.innerWidth - edgeSizeX)) / edgeSizeX) * 25);
+            } else {
+                dragScrollVelocityX = 0;
+            }
         } else {
-            dragScrollVelocity = 0;
+            dragScrollVelocityX = 0;
+        }
+
+        // Vertical Edge Scroll for the list itself
+        if (y < edgeSizeY) {
+            dragScrollVelocityY = -(((edgeSizeY - y) / edgeSizeY) * 20);
+        } else if (y > window.innerHeight - menuHeight - edgeSizeY && y < window.innerHeight - menuHeight) {
+            const distFromBottom = (window.innerHeight - menuHeight) - y;
+            dragScrollVelocityY = ((edgeSizeY - distFromBottom) / edgeSizeY) * 20;
+        } else {
+            dragScrollVelocityY = 0;
         }
         
-        if (dragScrollVelocity !== 0 && !dragScrollAnimation) {
+        if ((dragScrollVelocityX !== 0 || dragScrollVelocityY !== 0) && !dragScrollAnimation) {
             const board = document.querySelector('.board');
             board.style.transition = 'none';
+            
             function animateScroll() {
-                if (dragScrollVelocity === 0) {
+                if (dragScrollVelocityX === 0 && dragScrollVelocityY === 0) {
                     dragScrollAnimation = null;
                     return;
                 }
-                currentTranslateX += dragScrollVelocity;
                 
-                if (currentTranslateX > 0) currentTranslateX = 0;
-                if (currentTranslateX < -(3 * window.innerWidth)) currentTranslateX = -(3 * window.innerWidth);
-                
-                board.style.transform = `translateX(${currentTranslateX}px)`;
-                
-                currentBoardIdx = Math.round(Math.abs(currentTranslateX) / window.innerWidth);
-                const tabs = ['pool', 'wip', 'ready', 'review'];
-                document.querySelectorAll('.mobile-tab').forEach(t => t.classList.remove('active'));
-                const targetTab = document.querySelector(`.mobile-tab[data-tab="${tabs[currentBoardIdx]}"]`);
-                if (targetTab) targetTab.classList.add('active');
+                // Horizontal scrolling (board)
+                if (dragScrollVelocityX !== 0) {
+                    currentTranslateX += dragScrollVelocityX;
+                    if (currentTranslateX > 0) currentTranslateX = 0;
+                    if (currentTranslateX < -(3 * window.innerWidth)) currentTranslateX = -(3 * window.innerWidth);
+                    board.style.transform = `translateX(${currentTranslateX}px)`;
+                    
+                    currentBoardIdx = Math.round(Math.abs(currentTranslateX) / window.innerWidth);
+                    const tabs = ['pool', 'wip', 'ready', 'review'];
+                    document.querySelectorAll('.mobile-tab').forEach(t => t.classList.remove('active'));
+                    const targetTab = document.querySelector(`.mobile-tab[data-tab="${tabs[currentBoardIdx]}"]`);
+                    if (targetTab) targetTab.classList.add('active');
+                }
+
+                // Vertical scrolling (current column content)
+                if (dragScrollVelocityY !== 0) {
+                    const tabs = ['pool', 'wip', 'ready', 'review'];
+                    const activeCol = document.querySelector(`#col-${tabs[currentBoardIdx]} .col-content`);
+                    if (activeCol) {
+                        activeCol.scrollTop += dragScrollVelocityY;
+                    }
+                }
                 
                 dragScrollAnimation = requestAnimationFrame(animateScroll);
             }
@@ -445,7 +476,8 @@
     });
 
     function stopDragScroll() {
-        dragScrollVelocity = 0;
+        dragScrollVelocityX = 0;
+        dragScrollVelocityY = 0;
         if (window.innerWidth < 768) {
             const tabs = ['pool', 'wip', 'ready', 'review'];
             switchTab(tabs[currentBoardIdx]);
