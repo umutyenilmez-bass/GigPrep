@@ -233,6 +233,7 @@
         <div class="link-builder">
           <input type="text" id="newLinkTitle" class="form-input" placeholder="Başlık (Örn: Tabs)" style="flex:1;">
           <input type="url" id="newLinkUrl" class="form-input" placeholder="URL" style="flex:2;" oninput="handleLinkAutoFill(this.value)">
+          <button type="button" class="btn-icon" onclick="pasteFromClipboard()" title="Panodan Yapıştır" style="font-size:16px; background:var(--surface-2); border:1px solid var(--border);">📋</button>
           <button type="button" class="btn-icon" onclick="addLinkField()">+</button>
         </div>
       </div>
@@ -254,11 +255,14 @@
       
       <div class="form-group">
         <label class="form-label">Şarkı Listesi</label>
-        <div style="font-size:12px; color:var(--text-3); margin-bottom:12px; line-height:1.4;">Her satıra bir şarkı gelecek şekilde yapıştırın. Format: <strong>Sanatçı - Şarkı Adı</strong> veya sadece <strong>Şarkı Adı</strong>. <br>Sistem her biri için otomatik olarak YouTube arama linki oluşturup Havuz'a ekleyecektir.</div>
+        <div style="font-size:12px; color:var(--text-3); margin-bottom:12px; line-height:1.4;">Her satıra bir şarkı gelecek şekilde yapıştırın. Format: <strong>Sanatçı - Şarkı Adı</strong> veya sadece <strong>Şarkı Adı</strong>.</div>
         <textarea id="bulkInput" class="form-input" style="height: 250px; resize: none; line-height: 1.5; font-family: 'DM Mono', monospace; font-size:13px;" placeholder="Tarkan - Şımarık&#10;Kenan Doğulu - Kandırdım&#10;Sir Duke"></textarea>
       </div>
 
-      <button class="btn-save" onclick="processBulkImport()">İçe Aktar</button>
+      <div style="display:flex; gap:12px;">
+         <button id="btnBulkFast" class="btn-save" style="flex:1;" onclick="processBulkImport(true)">Hızlı Ekle (Aramasız)</button>
+         <button id="btnBulkFull" class="btn-save" style="flex:1; background:rgba(255,255,255,0.05); color:var(--text); border:1px solid rgba(255,255,255,0.1);" onclick="processBulkImport(false)">Linklerle Ekle (Yavaş)</button>
+      </div>
     </div>
   </div>
 
@@ -903,96 +907,137 @@
       reader.readAsText(file);
     }
     
-    async function processBulkImport() {
+    async function processBulkImport(fastMode = false) {
       const text = document.getElementById('bulkInput').value;
       const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
       
       if (lines.length === 0) return;
       
-      const btn = document.querySelector('#bulkModalOverlay .btn-save');
-      const originalText = btn.innerText;
-      btn.innerText = 'YouTube Linkleri Aranıyor...';
-      btn.style.opacity = '0.7';
-      btn.style.pointerEvents = 'none';
+      const btn1 = document.getElementById('btnBulkFast');
+      const btn2 = document.getElementById('btnBulkFull');
+      
+      const originalText1 = btn1.innerText;
+      const originalText2 = btn2.innerText;
+      
+      if (fastMode) {
+          btn1.innerText = 'Ekleniyor...';
+      } else {
+          btn2.innerText = 'Aranıyor...';
+      }
+      
+      btn1.style.pointerEvents = 'none';
+      btn2.style.pointerEvents = 'none';
+      btn1.style.opacity = '0.5';
+      btn2.style.opacity = '0.5';
       
       const importedSongs = [];
       
-      await Promise.all(lines.map(async (line) => {
-         const extracted = extractKey(line);
-         let cleanLine = extracted.name;
-         const songKey = extracted.key;
-         
-         let artist = '';
-         let name = cleanLine;
-         
-         if (cleanLine.includes(' - ')) {
-            const parts = cleanLine.split(' - ');
-            artist = parts[0].trim();
-            name = parts.slice(1).join(' - ').trim();
-         } else if (cleanLine.includes('-')) {
-            const parts = cleanLine.split('-');
-            artist = parts[0].trim();
-            name = parts.slice(1).join('-').trim();
-         } else {
-            try {
-                const itunesRes = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(cleanLine)}&media=music&limit=1`);
-                if(itunesRes.ok) {
-                    const itunesData = await itunesRes.json();
-                    if(itunesData.results && itunesData.results.length > 0) {
-                        artist = itunesData.results[0].artistName;
-                        name = itunesData.results[0].trackName;
-                    }
-                }
-            } catch(e) {
-                console.log("iTunes parse failed for:", cleanLine);
-            }
-         }
-         
-         const newId = Date.now().toString() + Math.random().toString(36).substr(2, 5);
-         const searchQuery = artist ? `${artist} ${name}` : name;
-         let finalUrl = 'https://www.youtube.com/results?search_query=' + encodeURIComponent(searchQuery);
-         const apiKey = localStorage.getItem('gigprep_yt_key');
-         
-         try {
-             if (apiKey) {
-                 const apiUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=1&q=${encodeURIComponent(searchQuery)}&key=${apiKey}`;
-                 const res = await fetch(apiUrl);
-                 if (res.ok) {
-                     const data = await res.json();
-                     if (data.items && data.items.length > 0 && data.items[0].id.videoId) {
-                         const vId = data.items[0].id.videoId;
-                         finalUrl = `https://www.youtube.com/watch?v=${vId}&list=RD${vId}&start_radio=1`;
-                     }
-                 }
+      if (fastMode) {
+          lines.forEach((line, index) => {
+              const extracted = extractKey(line);
+              let cleanLine = extracted.name;
+              const songKey = extracted.key;
+              
+              let artist = '';
+              let name = cleanLine;
+              
+              if (cleanLine.includes(' - ')) {
+                  const parts = cleanLine.split(' - ');
+                  artist = parts[0].trim();
+                  name = parts.slice(1).join(' - ').trim();
+              } else if (cleanLine.includes('-')) {
+                  const parts = cleanLine.split('-');
+                  artist = parts[0].trim();
+                  name = parts.slice(1).join('-').trim();
+              }
+              
+              const newId = Date.now().toString() + Math.random().toString(36).substr(2, 5);
+              
+              importedSongs.push({
+                 id: newId,
+                 name: name || line,
+                 artist: artist,
+                 key: songKey,
+                 notes: '',
+                 status: 'pool',
+                 links: [],
+                 originalLine: line
+              });
+          });
+      } else {
+          await Promise.all(lines.map(async (line) => {
+             const extracted = extractKey(line);
+             let cleanLine = extracted.name;
+             const songKey = extracted.key;
+             
+             let artist = '';
+             let name = cleanLine;
+             
+             if (cleanLine.includes(' - ')) {
+                const parts = cleanLine.split(' - ');
+                artist = parts[0].trim();
+                name = parts.slice(1).join(' - ').trim();
+             } else if (cleanLine.includes('-')) {
+                const parts = cleanLine.split('-');
+                artist = parts[0].trim();
+                name = parts.slice(1).join('-').trim();
              } else {
-                 const ytSearchUrl = 'https://www.youtube.com/results?search_query=' + encodeURIComponent(searchQuery);
-                 const proxyUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent(ytSearchUrl);
-                 const res = await fetch(proxyUrl);
-                 if (res.ok) {
-                     const data = await res.json();
-                     const html = data.contents;
-                     const match = html.match(/"videoId":"([a-zA-Z0-9_-]{11})"/);
-                     if (match && match[1]) {
-                         const vId = match[1];
-                         finalUrl = `https://www.youtube.com/watch?v=${vId}&list=RD${vId}&start_radio=1`;
+                try {
+                    const itunesRes = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(cleanLine)}&media=music&limit=1`);
+                    if(itunesRes.ok) {
+                        const itunesData = await itunesRes.json();
+                        if(itunesData.results && itunesData.results.length > 0) {
+                            artist = itunesData.results[0].artistName;
+                            name = itunesData.results[0].trackName;
+                        }
+                    }
+                } catch(e) {}
+             }
+             
+             const newId = Date.now().toString() + Math.random().toString(36).substr(2, 5);
+             const searchQuery = artist ? `${artist} ${name}` : name;
+             let finalUrl = 'https://www.youtube.com/results?search_query=' + encodeURIComponent(searchQuery);
+             const apiKey = localStorage.getItem('gigprep_yt_key');
+             
+             try {
+                 if (apiKey) {
+                     const apiUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=1&q=${encodeURIComponent(searchQuery)}&key=${apiKey}`;
+                     const res = await fetch(apiUrl);
+                     if (res.ok) {
+                         const data = await res.json();
+                         if (data.items && data.items.length > 0 && data.items[0].id.videoId) {
+                             const vId = data.items[0].id.videoId;
+                             finalUrl = `https://www.youtube.com/watch?v=${vId}&list=RD${vId}&start_radio=1`;
+                         }
+                     }
+                 } else {
+                     const ytSearchUrl = 'https://www.youtube.com/results?search_query=' + encodeURIComponent(searchQuery);
+                     const proxyUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent(ytSearchUrl);
+                     const res = await fetch(proxyUrl);
+                     if (res.ok) {
+                         const data = await res.json();
+                         const html = data.contents;
+                         const match = html.match(/"videoId":"([a-zA-Z0-9_-]{11})"/);
+                         if (match && match[1]) {
+                             const vId = match[1];
+                             finalUrl = `https://www.youtube.com/watch?v=${vId}&list=RD${vId}&start_radio=1`;
+                         }
                      }
                  }
-             }
-         } catch (e) {
-             console.log("Direct YouTube fetch fallback for:", searchQuery);
-         }
-         
-         importedSongs.push({
-           id: newId,
-           name: name,
-           artist: artist,
-           key: songKey,
-           notes: '',
-           status: 'pool',
-           links: [ { title: 'YouTube', url: finalUrl } ],
-           originalLine: line
-         });
-      }));
+             } catch (e) {}
+             
+             importedSongs.push({
+               id: newId,
+               name: name,
+               artist: artist,
+               key: songKey,
+               notes: '',
+               status: 'pool',
+               links: [ { title: 'YouTube', url: finalUrl } ],
+               originalLine: line
+             });
+          }));
+      }
       
       importedSongs.sort((a, b) => lines.indexOf(b.originalLine) - lines.indexOf(a.originalLine));
       
@@ -1005,9 +1050,12 @@
       renderBoard();
       closeBulkModal();
       
-      btn.innerText = originalText;
-      btn.style.opacity = '1';
-      btn.style.pointerEvents = 'auto';
+      btn1.innerText = originalText1;
+      btn2.innerText = originalText2;
+      btn1.style.opacity = '1';
+      btn2.style.opacity = '1';
+      btn1.style.pointerEvents = 'auto';
+      btn2.style.pointerEvents = 'auto';
     }
 
     function renderLinksInModal() {
@@ -1114,6 +1162,88 @@
             const check = opt.querySelector('span:nth-child(2)');
             if (check) check.remove();
         });
+    }
+
+    async function pasteFromClipboard() {
+        try {
+            const text = await navigator.clipboard.readText();
+            if (text && (text.includes('youtube.com') || text.includes('youtu.be') || text.includes('http'))) {
+                const urlInput = document.getElementById('newLinkUrl');
+                urlInput.value = text;
+                handleLinkAutoFill(text);
+            }
+        } catch (e) {
+            alert("Panoya erişilemedi. Lütfen linki URL kutusuna basılı tutarak elinizle yapıştırın.");
+        }
+    }
+
+    let lastClipboardText = '';
+    document.addEventListener('visibilitychange', async () => {
+        if (document.visibilityState === 'visible' && document.getElementById('modalOverlay').classList.contains('active')) {
+            try {
+                const text = await navigator.clipboard.readText();
+                if (text && text !== lastClipboardText && (text.includes('youtube.com') || text.includes('youtu.be'))) {
+                    lastClipboardText = text;
+                    const urlInput = document.getElementById('newLinkUrl');
+                    if (urlInput && !urlInput.value) {
+                        urlInput.value = text;
+                        handleLinkAutoFill(text);
+                    }
+                }
+            } catch (e) {
+                // Silently fail, expected on strict browsers (iOS) without user gesture
+            }
+        }
+    });
+
+    let linkFillTimeout;
+    function handleLinkAutoFill(val) {
+        clearTimeout(linkFillTimeout);
+        const t = document.getElementById('newLinkTitle');
+        if(!t.value) {
+            if(val.includes('youtube.com') || val.includes('youtu.be')) t.value = 'YouTube';
+            else if(val.includes('spotify.com')) t.value = 'Spotify';
+            else if(val.includes('ultimate-guitar') || val.includes('dogruakor') || val.includes('akor')) t.value = 'Akor';
+        }
+        
+        if(val.includes('http') && (val.includes('youtube.com') || val.includes('youtu.be'))) {
+            linkFillTimeout = setTimeout(async () => {
+                const nameInput = document.getElementById('songName');
+                const artistInput = document.getElementById('songArtist');
+                
+                if (!nameInput.value || !artistInput.value) {
+                    try {
+                        const res = await fetch(`https://noembed.com/embed?url=${encodeURIComponent(val)}`);
+                        if (res.ok) {
+                            const data = await res.json();
+                            if (data && data.title) {
+                                let title = data.title;
+                                title = title.replace(/\(Official.*?\)/gi, '').replace(/\[.*?\]/g, '').replace(/official video/gi, '').trim();
+                                
+                                let artist = '';
+                                let name = title;
+                                if (title.includes(' - ')) {
+                                    const parts = title.split(' - ');
+                                    artist = parts[0].trim();
+                                    name = parts.slice(1).join(' - ').trim();
+                                } else if (title.includes('-')) {
+                                    const parts = title.split('-');
+                                    artist = parts[0].trim();
+                                    name = parts.slice(1).join('-').trim();
+                                }
+                                
+                                if (!nameInput.value && name) nameInput.value = name;
+                                if (!artistInput.value && artist) artistInput.value = artist;
+                            }
+                        }
+                    } catch (e) {}
+                }
+                
+                if (t.value && document.getElementById('newLinkUrl').value === val) {
+                    addLinkField();
+                }
+            }, 600);
+        }
     }
 
     function addLinkField() {
