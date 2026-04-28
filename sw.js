@@ -1,4 +1,4 @@
-const CACHE = 'gigprep-v2';
+const CACHE = 'gigprep-v3';
 const ASSETS = ['./index.html', './logo.png?v=2', './manifest.json', './friz-quadrata-regular.ttf', './friz-quadrata-bold-italic.ttf'];
 
 self.addEventListener('install', e => {
@@ -12,5 +12,13 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
-  e.respondWith(caches.match(e.request).then(r => r || fetch(e.request).catch(() => caches.match('./index.html'))));
+  e.respondWith(
+    fetch(e.request).then(response => {
+      const resClone = response.clone();
+      caches.open(CACHE).then(cache => cache.put(e.request, resClone));
+      return response;
+    }).catch(() => {
+      return caches.match(e.request).then(r => r || caches.match('./index.html'));
+    })
+  );
 });
