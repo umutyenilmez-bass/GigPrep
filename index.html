@@ -271,47 +271,103 @@
       if (targetTab) targetTab.classList.add('active');
       
       if (window.innerWidth < 768) {
+          const board = document.querySelector('.board');
+          board.style.transition = 'transform 0.3s cubic-bezier(0.25, 1, 0.5, 1)';
           const tabs = ['pool', 'wip', 'ready', 'review'];
           const idx = tabs.indexOf(tabId);
-          document.querySelector('.board').style.transform = `translateX(-${idx * 100}vw)`;
+          board.style.transform = `translateX(-${idx * 100}vw)`;
       }
     }
 
     let touchStartX = 0;
-    let touchEndX = 0;
+    let touchStartY = 0;
+    let currentTranslateX = 0;
+    let isDraggingBoard = false;
+    let isSwipeDetermined = false;
+    let currentBoardIdx = 0;
     
     document.addEventListener('touchstart', e => {
-      touchStartX = e.changedTouches[0].screenX;
-    }, {passive: true});
-
-    document.addEventListener('touchend', e => {
-      touchEndX = e.changedTouches[0].screenX;
-      handleSwipe();
-    }, {passive: true});
-
-    function handleSwipe() {
       if (window.innerWidth >= 768) return;
       if (document.querySelector('.modal-overlay.active')) return;
+      if (document.querySelector('.card.dragging')) return;
       
-      const swipeThreshold = 80;
-      if (touchEndX < touchStartX - swipeThreshold) goToNextTab();
-      if (touchEndX > touchStartX + swipeThreshold) goToPrevTab();
-    }
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+      isDraggingBoard = false;
+      isSwipeDetermined = false;
+      
+      const currentActive = document.querySelector('.mobile-tab.active');
+      if (currentActive) {
+        const tabs = ['pool', 'wip', 'ready', 'review'];
+        currentBoardIdx = tabs.indexOf(currentActive.getAttribute('data-tab'));
+        currentTranslateX = -(currentBoardIdx * window.innerWidth);
+      }
+      
+      document.querySelector('.board').style.transition = 'none';
+    }, {passive: true});
+
+    document.addEventListener('touchmove', e => {
+      if (window.innerWidth >= 768) return;
+      if (document.querySelector('.modal-overlay.active')) return;
+      if (document.querySelector('.card.dragging')) return;
+      
+      const touchX = e.touches[0].clientX;
+      const touchY = e.touches[0].clientY;
+      const deltaX = touchX - touchStartX;
+      const deltaY = touchY - touchStartY;
+      
+      if (!isSwipeDetermined) {
+         if (Math.abs(deltaX) > 10 || Math.abs(deltaY) > 10) {
+            isSwipeDetermined = true;
+            if (Math.abs(deltaX) > Math.abs(deltaY) + 5) {
+               isDraggingBoard = true;
+            }
+         }
+      }
+      
+      if (isDraggingBoard) {
+         if (e.cancelable) e.preventDefault();
+         let nextTranslate = currentTranslateX + deltaX;
+         if (nextTranslate > 0) nextTranslate = nextTranslate * 0.3; 
+         if (nextTranslate < -(3 * window.innerWidth)) {
+            const over = nextTranslate + (3 * window.innerWidth);
+            nextTranslate = -(3 * window.innerWidth) + (over * 0.3);
+         }
+         document.querySelector('.board').style.transform = `translateX(${nextTranslate}px)`;
+      }
+    }, {passive: false});
+
+    document.addEventListener('touchend', e => {
+      if (window.innerWidth >= 768) return;
+      
+      const board = document.querySelector('.board');
+      board.style.transition = 'transform 0.3s cubic-bezier(0.25, 1, 0.5, 1)';
+      
+      if (!isDraggingBoard) return;
+      
+      const touchEndX = e.changedTouches[0].clientX;
+      const deltaX = touchEndX - touchStartX;
+      const swipeThreshold = window.innerWidth * 0.2;
+      
+      if (deltaX < -swipeThreshold) goToNextTab();
+      else if (deltaX > swipeThreshold) goToPrevTab();
+      else {
+         const tabs = ['pool', 'wip', 'ready', 'review'];
+         switchTab(tabs[currentBoardIdx]);
+      }
+      isDraggingBoard = false;
+    }, {passive: true});
 
     function goToNextTab() {
       const tabs = ['pool', 'wip', 'ready', 'review'];
-      const currentActive = document.querySelector('.mobile-tab.active');
-      if (!currentActive) return;
-      const currentIndex = tabs.indexOf(currentActive.getAttribute('data-tab'));
-      if (currentIndex < tabs.length - 1) switchTab(tabs[currentIndex + 1]);
+      if (currentBoardIdx < tabs.length - 1) switchTab(tabs[currentBoardIdx + 1]);
+      else switchTab(tabs[currentBoardIdx]); // snap back if at end
     }
 
     function goToPrevTab() {
       const tabs = ['pool', 'wip', 'ready', 'review'];
-      const currentActive = document.querySelector('.mobile-tab.active');
-      if (!currentActive) return;
-      const currentIndex = tabs.indexOf(currentActive.getAttribute('data-tab'));
-      if (currentIndex > 0) switchTab(tabs[currentIndex - 1]);
+      if (currentBoardIdx > 0) switchTab(tabs[currentBoardIdx - 1]);
+      else switchTab(tabs[currentBoardIdx]); // snap back if at start
     }
 
     document.getElementById('col-pool').classList.add('active');
