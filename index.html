@@ -218,13 +218,24 @@
         <datalist id="mashupList"></datalist>
       </div>
 
+      <div class="form-group" style="background:var(--surface-2); border:1px solid var(--border); padding:12px; border-radius:12px; margin-bottom:16px;">
+        <label class="form-label" style="display:flex; justify-content:space-between; align-items:center;">
+           <span><span style="color:#FF4444">▶</span> Akıllı YouTube Araması</span>
+        </label>
+        <div style="display:flex; gap:8px;">
+           <input type="text" id="ytSearchInput" class="form-input" placeholder="Şarkı veya sanatçı yazın..." style="flex:1;">
+           <button type="button" class="btn-icon" onclick="searchAndFillYT()" style="background:#FF4444; color:#FFF; border:none; padding:0 12px; font-size:13px; font-weight:600;" title="Ara ve Doldur">Bul & Ekle</button>
+        </div>
+        <div id="ytSearchStatus" style="font-size:11px; margin-top:8px; color:var(--text-3); display:none;">Aranıyor...</div>
+      </div>
+
       <div class="form-group">
         <label class="form-label">Özel Linkler</label>
         <div id="linksContainer"></div>
         <div class="link-builder">
           <input type="text" id="newLinkTitle" class="form-input" placeholder="Başlık (Örn: Tabs)" style="flex:1;">
           <input type="url" id="newLinkUrl" class="form-input" placeholder="URL" style="flex:2;" oninput="handleLinkAutoFill(this.value)">
-          <button class="btn-icon" onclick="addLinkField()">+</button>
+          <button type="button" class="btn-icon" onclick="addLinkField()">+</button>
         </div>
       </div>
 
@@ -785,6 +796,11 @@
       document.getElementById('songStatus').value = s ? s.status : 'pool';
       document.getElementById('btnDelete').style.display = s ? 'block' : 'none';
       
+      const ytInput = document.getElementById('ytSearchInput');
+      const ytStatus = document.getElementById('ytSearchStatus');
+      if(ytInput) ytInput.value = '';
+      if(ytStatus) ytStatus.style.display = 'none';
+      
       const mashupList = document.getElementById('mashupList');
       const mashupInput = document.getElementById('songMashupNext');
       mashupList.innerHTML = '';
@@ -988,6 +1004,85 @@
         `;
         c.appendChild(row);
       });
+    }
+
+    async function searchAndFillYT() {
+        const query = document.getElementById('ytSearchInput').value.trim() || document.getElementById('songName').value.trim();
+        if (!query) {
+            alert("Lütfen aramak için bir parça veya sanatçı adı girin.");
+            return;
+        }
+        
+        const statusEl = document.getElementById('ytSearchStatus');
+        statusEl.style.display = 'block';
+        statusEl.style.color = 'var(--text-3)';
+        statusEl.innerText = 'Şarkı bilgileri analiz ediliyor...';
+        
+        let artist = '';
+        let name = query;
+        let vId = null;
+        
+        try {
+            const itunesRes = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(query)}&media=music&limit=1`);
+            if(itunesRes.ok) {
+                const itunesData = await itunesRes.json();
+                if(itunesData.results && itunesData.results.length > 0) {
+                    artist = itunesData.results[0].artistName;
+                    name = itunesData.results[0].trackName;
+                }
+            }
+        } catch(e) {}
+        
+        statusEl.innerText = 'YouTube bağlantısı aranıyor...';
+        
+        const searchQuery = artist ? `${artist} ${name}` : name;
+        const apiKey = localStorage.getItem('gigprep_yt_key');
+        try {
+             if (apiKey) {
+                 const apiUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=1&q=${encodeURIComponent(searchQuery)}&key=${apiKey}`;
+                 const res = await fetch(apiUrl);
+                 if (res.ok) {
+                     const data = await res.json();
+                     if (data.items && data.items.length > 0 && data.items[0].id.videoId) {
+                         vId = data.items[0].id.videoId;
+                     }
+                 }
+             } else {
+                 const ytSearchUrl = 'https://www.youtube.com/results?search_query=' + encodeURIComponent(searchQuery);
+                 const proxyUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent(ytSearchUrl);
+                 const res = await fetch(proxyUrl);
+                 if (res.ok) {
+                     const data = await res.json();
+                     const html = data.contents;
+                     const match = html.match(/"videoId":"([a-zA-Z0-9_-]{11})"/);
+                     if (match && match[1]) {
+                         vId = match[1];
+                     }
+                 }
+             }
+        } catch (e) {}
+        
+        const nameInput = document.getElementById('songName');
+        const artistInput = document.getElementById('songArtist');
+        
+        if (name && (!nameInput.value || query === nameInput.value)) nameInput.value = name;
+        if (artist && !artistInput.value) artistInput.value = artist;
+        
+        if (vId) {
+            const finalUrl = `https://www.youtube.com/watch?v=${vId}&list=RD${vId}&start_radio=1`;
+            const exists = currentLinks.some(l => l.url.includes(vId) || (l.url.includes('youtube') && l.title === 'YouTube'));
+            if (!exists) {
+                currentLinks.push({ title: 'YouTube', url: finalUrl });
+                renderLinksInModal();
+            }
+            statusEl.innerText = 'Başarıyla bulundu ve eklendi!';
+            statusEl.style.color = 'var(--green)';
+        } else {
+            statusEl.innerText = 'YouTube videosu bulunamadı, ancak bilgiler dolduruldu.';
+            statusEl.style.color = 'var(--accent)';
+        }
+        
+        setTimeout(() => { statusEl.style.display = 'none'; }, 4000);
     }
 
     function addLinkField() {
