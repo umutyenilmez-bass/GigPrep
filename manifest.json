@@ -1,0 +1,13 @@
+{
+  "name": "GigPrep",
+  "short_name": "GigPrep",
+  "description": "Repertuar Takip — Müzisyenler için",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0F0F10",
+  "theme_color": "#0F0F10",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "logo.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
