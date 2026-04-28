@@ -16,6 +16,7 @@
       font-weight: 400;
     }
     :root {
+      color-scheme: dark;
       --bg: #0F0F10;
       --surface: #1A1A1C;
       --surface-2: #222225;
@@ -213,9 +214,8 @@
 
       <div class="form-group">
         <label class="form-label">Medley (Potpori) / Sonraki Parça <span style="font-size:10px; font-weight:normal; color:var(--text-3);">(Peşpeşe çalınacaksa)</span></label>
-        <select id="songMashupNext" class="form-select">
-          <option value="">-- Yok --</option>
-        </select>
+        <input type="text" id="songMashupNext" class="form-input" list="mashupList" placeholder="Şarkı ara veya seç..." autocomplete="off">
+        <datalist id="mashupList"></datalist>
       </div>
 
       <div class="form-group">
@@ -785,15 +785,20 @@
       document.getElementById('songStatus').value = s ? s.status : 'pool';
       document.getElementById('btnDelete').style.display = s ? 'block' : 'none';
       
-      const mashupSelect = document.getElementById('songMashupNext');
-      mashupSelect.innerHTML = '<option value="">-- Yok --</option>';
+      const mashupList = document.getElementById('mashupList');
+      const mashupInput = document.getElementById('songMashupNext');
+      mashupList.innerHTML = '';
       songs.filter(x => x.id !== id).forEach(x => {
           const opt = document.createElement('option');
-          opt.value = x.id;
-          opt.textContent = `${x.artist ? x.artist + ' - ' : ''}${x.name}`;
-          mashupSelect.appendChild(opt);
+          opt.value = `${x.artist ? x.artist + ' - ' : ''}${x.name}`;
+          mashupList.appendChild(opt);
       });
-      mashupSelect.value = s && s.mashupNext ? s.mashupNext : '';
+      if (s && s.mashupNext) {
+          const nextS = songs.find(x => x.id === s.mashupNext);
+          mashupInput.value = nextS ? `${nextS.artist ? nextS.artist + ' - ' : ''}${nextS.name}` : '';
+      } else {
+          mashupInput.value = '';
+      }
       
       currentLinks = s && s.links ? [...s.links] : [];
       renderLinksInModal();
@@ -1020,7 +1025,11 @@
         key: document.getElementById('songKey').value.trim(),
         notes: document.getElementById('songNotes').value.trim(),
         status: document.getElementById('songStatus').value,
-        mashupNext: document.getElementById('songMashupNext').value,
+        mashupNext: (() => {
+            const val = document.getElementById('songMashupNext').value.trim();
+            const selected = songs.find(x => (`${x.artist ? x.artist + ' - ' : ''}${x.name}`) === val);
+            return selected ? selected.id : '';
+        })(),
         links: [...currentLinks]
       };
 
