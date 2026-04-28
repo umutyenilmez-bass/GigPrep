@@ -251,6 +251,15 @@
     </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/mobile-drag-drop@2.3.0-rc.2/index.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mobile-drag-drop@2.3.0-rc.2/scroll-behaviour.min.js"></script>
+  <script>
+    MobileDragDrop.polyfill({
+        dragImageTranslateOverride: MobileDragDrop.scrollBehaviourDragImageTranslateOverride,
+        holdToDrag: 300
+    });
+    window.addEventListener('touchmove', function() {}, {passive: false}); // Required by polyfill in some older iOS, but modern browsers handle it better.
+  </script>
   <script>
     if('serviceWorker' in navigator) {
       navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW registration failed:', err));
@@ -263,6 +272,43 @@
       
       document.querySelectorAll('.column').forEach(c => c.classList.remove('active'));
       document.getElementById('col-' + tabId).classList.add('active');
+    }
+
+    let touchStartX = 0;
+    let touchEndX = 0;
+    
+    document.addEventListener('touchstart', e => {
+      touchStartX = e.changedTouches[0].screenX;
+    }, {passive: true});
+
+    document.addEventListener('touchend', e => {
+      touchEndX = e.changedTouches[0].screenX;
+      handleSwipe();
+    }, {passive: true});
+
+    function handleSwipe() {
+      if (window.innerWidth >= 768) return;
+      if (document.querySelector('.modal-overlay.active')) return;
+      
+      const swipeThreshold = 80;
+      if (touchEndX < touchStartX - swipeThreshold) goToNextTab();
+      if (touchEndX > touchStartX + swipeThreshold) goToPrevTab();
+    }
+
+    function goToNextTab() {
+      const tabs = ['pool', 'wip', 'ready', 'review'];
+      const currentActive = document.querySelector('.mobile-tab.active');
+      if (!currentActive) return;
+      const currentIndex = tabs.indexOf(currentActive.getAttribute('data-tab'));
+      if (currentIndex < tabs.length - 1) switchTab(tabs[currentIndex + 1]);
+    }
+
+    function goToPrevTab() {
+      const tabs = ['pool', 'wip', 'ready', 'review'];
+      const currentActive = document.querySelector('.mobile-tab.active');
+      if (!currentActive) return;
+      const currentIndex = tabs.indexOf(currentActive.getAttribute('data-tab'));
+      if (currentIndex > 0) switchTab(tabs[currentIndex - 1]);
     }
 
     document.getElementById('col-pool').classList.add('active');
