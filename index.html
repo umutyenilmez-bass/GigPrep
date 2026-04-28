@@ -198,7 +198,10 @@
 
       <div class="form-group">
         <label class="form-label">Parça Adı</label>
-        <input type="text" id="songName" class="form-input" placeholder="Örn: Sir Duke" autocomplete="off">
+        <div style="display:flex; gap:8px; align-items:center;">
+          <input type="text" id="songName" class="form-input" placeholder="Örn: Sir Duke" autocomplete="off" style="flex:1;">
+          <button type="button" onclick="openYouTubeSearch()" style="background:rgba(255,0,0,0.12); color:#FF4444; border:1px solid rgba(255,0,0,0.3); width:44px; height:44px; border-radius:var(--radius-sm); font-size:18px; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0;" title="YouTube'da Ara">▶</button>
+        </div>
       </div>
       
       <div style="display:flex; gap:12px;">
@@ -225,10 +228,7 @@
       </div>
 
       <div class="form-group">
-        <label class="form-label" style="display:flex; justify-content:space-between; align-items:center;">
-          <span>Özel Linkler</span>
-          <button type="button" onclick="openYouTubeSearch()" style="background:rgba(255,0,0,0.1); color:#FF4444; border:1px solid rgba(255,0,0,0.3); padding:4px 8px; border-radius:12px; font-size:11px; cursor:pointer; font-weight:600; display:flex; align-items:center; gap:4px;">▶ YouTube'da Ara</button>
-        </label>
+        <label class="form-label">Özel Linkler</label>
         <div id="linksContainer"></div>
         <div class="link-builder">
           <input type="text" id="newLinkTitle" class="form-input" placeholder="Başlık (Örn: Tabs)" style="flex:1;">
@@ -1217,55 +1217,73 @@
     let linkFillTimeout;
     function handleLinkAutoFill(val) {
         clearTimeout(linkFillTimeout);
-        const t = document.getElementById('newLinkTitle');
-        if(!t.value) {
-            if(val.includes('youtube.com') || val.includes('youtu.be')) t.value = 'YouTube';
-            else if(val.includes('spotify.com')) t.value = 'Spotify';
-            else if(val.includes('ultimate-guitar') || val.includes('dogruakor') || val.includes('akor')) t.value = 'Akor';
+        const titleInput = document.getElementById('newLinkTitle');
+        if(!titleInput.value) {
+            if(val.includes('youtube.com') || val.includes('youtu.be')) titleInput.value = 'YouTube';
+            else if(val.includes('spotify.com')) titleInput.value = 'Spotify';
+            else if(val.includes('ultimate-guitar') || val.includes('dogruakor') || val.includes('akor')) titleInput.value = 'Akor';
         }
         
         if(val.includes('http') && (val.includes('youtube.com') || val.includes('youtu.be'))) {
-            linkFillTimeout = setTimeout(async () => {
-                const nameInput = document.getElementById('songName');
-                const artistInput = document.getElementById('songArtist');
-                
-                try {
-                    const res = await fetch(`https://noembed.com/embed?url=${encodeURIComponent(val)}`);
-                    if (res.ok) {
-                        const data = await res.json();
-                        if (data && data.title) {
-                            let title = data.title;
-                            title = title.replace(/\(Official.*?\)/gi, '').replace(/\[.*?\]/g, '').replace(/official video/gi, '').replace(/official audio/gi, '').replace(/lyrics/gi, '').trim();
-                            
-                            let artist = '';
-                            let name = title;
-                            if (title.includes(' - ')) {
-                                const parts = title.split(' - ');
-                                artist = parts[0].trim();
-                                name = parts.slice(1).join(' - ').trim();
-                            } else if (title.includes(' – ')) {
-                                const parts = title.split(' – ');
-                                artist = parts[0].trim();
-                                name = parts.slice(1).join(' – ').trim();
-                            }
-                            
-                            if (name) nameInput.value = name;
-                            if (artist) artistInput.value = artist;
-                            
-                            if (name || artist) {
-                                showToast('✅ Parça bilgileri YouTube\'dan güncellendi');
-                            }
-                        }
-                    }
-                } catch (e) {}
-                
-                
-                if (t.value && document.getElementById('newLinkUrl').value === val) {
-                    addLinkField();
-                }
-            }, 600);
+            linkFillTimeout = setTimeout(() => resolveYouTubeAndAdd(val), 600);
         }
     }
+    
+    async function resolveYouTubeAndAdd(val) {
+        const nameInput = document.getElementById('songName');
+        const artistInput = document.getElementById('songArtist');
+        const urlInput = document.getElementById('newLinkUrl');
+        const titleInput = document.getElementById('newLinkTitle');
+        
+        // Make sure URL box still has the same link (user didn't clear it)
+        if (!urlInput || urlInput.value.trim() !== val.trim()) return;
+        
+        try {
+            const res = await fetch(`https://noembed.com/embed?url=${encodeURIComponent(val)}`);
+            if (res.ok) {
+                const data = await res.json();
+                if (data && data.title) {
+                    let title = data.title;
+                    // Strip common noise from YouTube titles
+                    title = title
+                        .replace(/\(Official.*?\)/gi, '')
+                        .replace(/\[Official.*?\]/gi, '')
+                        .replace(/\[.*?\]/g, '')
+                        .replace(/official (music )?video/gi, '')
+                        .replace(/official (music )?audio/gi, '')
+                        .replace(/lyric(s)? video/gi, '')
+                        .replace(/\s{2,}/g, ' ')
+                        .trim();
+                    
+                    let artist = '';
+                    let name = title;
+                    if (title.includes(' - ')) {
+                        const parts = title.split(' - ');
+                        artist = parts[0].trim();
+                        name = parts.slice(1).join(' - ').trim();
+                    } else if (title.includes(' – ')) {
+                        const parts = title.split(' – ');
+                        artist = parts[0].trim();
+                        name = parts.slice(1).join(' – ').trim();
+                    }
+                    
+                    // Always overwrite with YouTube data
+                    if (name) nameInput.value = name;
+                    if (artist) artistInput.value = artist;
+                    
+                    showToast('✅ Bilgiler YouTube\'dan düzeltildi');
+                }
+            }
+        } catch (e) {
+            // Network error - silently continue
+        }
+        
+        // Add link to list after metadata fetch completes
+        if (titleInput.value && urlInput.value) {
+            addLinkField();
+        }
+    }
+
 
     function addLinkField() {
       const t = document.getElementById('newLinkTitle');
