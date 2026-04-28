@@ -1164,6 +1164,24 @@
         });
     }
 
+    function showToast(msg) {
+        let t = document.getElementById('gigToast');
+        if (!t) {
+            t = document.createElement('div');
+            t.id = 'gigToast';
+            t.style.cssText = 'position:fixed; bottom:calc(80px + env(safe-area-inset-bottom)); left:50%; transform:translateX(-50%) translateY(20px); background:rgba(30,30,32,0.95); color:#fff; padding:10px 18px; border-radius:20px; font-size:13px; font-family:Inter,sans-serif; font-weight:600; white-space:nowrap; z-index:99999; border:1px solid rgba(255,255,255,0.1); opacity:0; transition:all 0.25s; pointer-events:none; box-shadow:0 4px 16px rgba(0,0,0,0.4);';
+            document.body.appendChild(t);
+        }
+        t.innerText = msg;
+        t.style.opacity = '1';
+        t.style.transform = 'translateX(-50%) translateY(0)';
+        clearTimeout(t._timer);
+        t._timer = setTimeout(() => {
+            t.style.opacity = '0';
+            t.style.transform = 'translateX(-50%) translateY(10px)';
+        }, 2500);
+    }
+
     async function pasteFromClipboard() {
         try {
             const text = await navigator.clipboard.readText();
@@ -1211,33 +1229,36 @@
                 const nameInput = document.getElementById('songName');
                 const artistInput = document.getElementById('songArtist');
                 
-                if (!nameInput.value || !artistInput.value) {
-                    try {
-                        const res = await fetch(`https://noembed.com/embed?url=${encodeURIComponent(val)}`);
-                        if (res.ok) {
-                            const data = await res.json();
-                            if (data && data.title) {
-                                let title = data.title;
-                                title = title.replace(/\(Official.*?\)/gi, '').replace(/\[.*?\]/g, '').replace(/official video/gi, '').trim();
-                                
-                                let artist = '';
-                                let name = title;
-                                if (title.includes(' - ')) {
-                                    const parts = title.split(' - ');
-                                    artist = parts[0].trim();
-                                    name = parts.slice(1).join(' - ').trim();
-                                } else if (title.includes('-')) {
-                                    const parts = title.split('-');
-                                    artist = parts[0].trim();
-                                    name = parts.slice(1).join('-').trim();
-                                }
-                                
-                                if (!nameInput.value && name) nameInput.value = name;
-                                if (!artistInput.value && artist) artistInput.value = artist;
+                try {
+                    const res = await fetch(`https://noembed.com/embed?url=${encodeURIComponent(val)}`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data && data.title) {
+                            let title = data.title;
+                            title = title.replace(/\(Official.*?\)/gi, '').replace(/\[.*?\]/g, '').replace(/official video/gi, '').replace(/official audio/gi, '').replace(/lyrics/gi, '').trim();
+                            
+                            let artist = '';
+                            let name = title;
+                            if (title.includes(' - ')) {
+                                const parts = title.split(' - ');
+                                artist = parts[0].trim();
+                                name = parts.slice(1).join(' - ').trim();
+                            } else if (title.includes(' – ')) {
+                                const parts = title.split(' – ');
+                                artist = parts[0].trim();
+                                name = parts.slice(1).join(' – ').trim();
+                            }
+                            
+                            if (name) nameInput.value = name;
+                            if (artist) artistInput.value = artist;
+                            
+                            if (name || artist) {
+                                showToast('✅ Parça bilgileri YouTube\'dan güncellendi');
                             }
                         }
-                    } catch (e) {}
-                }
+                    }
+                } catch (e) {}
+                
                 
                 if (t.value && document.getElementById('newLinkUrl').value === val) {
                     addLinkField();
