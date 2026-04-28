@@ -268,6 +268,13 @@
       navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW registration failed:', err));
     }
 
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let currentTranslateX = 0;
+    let isDraggingBoard = false;
+    let isSwipeDetermined = false;
+    let currentBoardIdx = 0;
+
     function switchTab(tabId) {
       document.querySelectorAll('.mobile-tab').forEach(t => t.classList.remove('active'));
       const targetTab = document.querySelector(`.mobile-tab[data-tab="${tabId}"]`);
@@ -278,16 +285,11 @@
           board.style.transition = 'transform 0.3s cubic-bezier(0.25, 1, 0.5, 1)';
           const tabs = ['pool', 'wip', 'ready', 'review'];
           const idx = tabs.indexOf(tabId);
+          currentBoardIdx = idx;
+          currentTranslateX = -(idx * window.innerWidth);
           board.style.transform = `translateX(-${idx * 100}vw)`;
       }
     }
-
-    let touchStartX = 0;
-    let touchStartY = 0;
-    let currentTranslateX = 0;
-    let isDraggingBoard = false;
-    let isSwipeDetermined = false;
-    let currentBoardIdx = 0;
     
     document.addEventListener('touchstart', e => {
       if (window.innerWidth >= 768) return;
@@ -372,6 +374,45 @@
       if (currentBoardIdx > 0) switchTab(tabs[currentBoardIdx - 1]);
       else switchTab(tabs[currentBoardIdx]); // snap back if at start
     }
+
+    let autoScrollDragTimer = null;
+    document.addEventListener('dragover', (e) => {
+        if (window.innerWidth >= 768) return;
+        
+        const x = e.clientX || (e.touches && e.touches.length ? e.touches[0].clientX : 0);
+        if (!x) return;
+        
+        const threshold = window.innerWidth * 0.15;
+        
+        if (x < threshold) {
+            if (!autoScrollDragTimer) {
+                autoScrollDragTimer = setTimeout(() => { goToPrevTab(); autoScrollDragTimer = null; }, 600);
+            }
+        } else if (x > window.innerWidth - threshold) {
+            if (!autoScrollDragTimer) {
+                autoScrollDragTimer = setTimeout(() => { goToNextTab(); autoScrollDragTimer = null; }, 600);
+            }
+        } else {
+            if (autoScrollDragTimer) {
+                clearTimeout(autoScrollDragTimer);
+                autoScrollDragTimer = null;
+            }
+        }
+    });
+
+    document.addEventListener('dragend', () => {
+        if (autoScrollDragTimer) {
+            clearTimeout(autoScrollDragTimer);
+            autoScrollDragTimer = null;
+        }
+    });
+    
+    document.addEventListener('drop', () => {
+        if (autoScrollDragTimer) {
+            clearTimeout(autoScrollDragTimer);
+            autoScrollDragTimer = null;
+        }
+    });
 
     document.getElementById('col-pool').classList.add('active');
 
@@ -504,7 +545,7 @@
                 return '<a href="' + l.url + '" target="_blank" class="link-tag" style="border-color:' + borderColor + ';' + extraStyle + '">' + title + '</a>';
               }).join('');
             }
-            if (song.status === 'wip') {
+            if (song.status === 'wip' || song.status === 'review') {
               footerHtml += `<button class="btn-ready" title="Hazır">✓</button>`;
             } else if (song.status === 'ready') {
               footerHtml += `<button class="btn-review" title="Gözden Geçir">Kontrol</button>`;
