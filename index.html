@@ -130,9 +130,6 @@
       <button id="btn-undo" onclick="undo()" style="background:transparent; color:var(--text-2); border:none; padding:0; height:36px; width:36px; border-radius:18px; display:flex; align-items:center; justify-content:center; font-size:18px; cursor:pointer; transition:all 0.2s; opacity:0.3; pointer-events:none;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'" title="Geri Al">↩️</button>
       <button id="btn-redo" onclick="redo()" style="background:transparent; color:var(--text-2); border:none; padding:0; height:36px; width:36px; border-radius:18px; display:flex; align-items:center; justify-content:center; font-size:18px; cursor:pointer; transition:all 0.2s; opacity:0.3; pointer-events:none;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'" title="İleri Al">↪️</button>
       <button onclick="openSettingsModal()" style="background:transparent; color:var(--text-2); border:none; padding:0; height:36px; width:36px; border-radius:18px; display:flex; align-items:center; justify-content:center; font-size:18px; cursor:pointer; transition:all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'" title="Ayarlar">⚙️</button>
-      <button onclick="openBulkModal()" style="background:transparent; color:var(--text-2); border:none; padding:0; height:36px; width:36px; border-radius:18px; display:flex; align-items:center; justify-content:center; font-size:18px; cursor:pointer; transition:all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'" title="Toplu Ekle">
-        <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M14 10H3v2h11v-2zm0-4H3v2h11V6zm4 8v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zM3 16h7v-2H3v2z"/></svg>
-      </button>
       <button class="btn-add" onclick="openModal()" style="margin-left:4px;">+</button>
     </div>
   </header>
@@ -180,6 +177,14 @@
       <div class="modal-handle"></div>
       <input type="hidden" id="songId">
       
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;" id="modalTopActions">
+        <h2 id="modalTitle" style="margin:0; font-family:'FrizQuadrata',serif; font-size:20px;">Yeni Parça Ekle</h2>
+        <button onclick="closeModal(); openBulkModal();" style="background:rgba(255,255,255,0.05); color:var(--text); border:1px solid var(--border); padding:6px 12px; border-radius:16px; font-size:12px; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:6px;">
+           <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M14 10H3v2h11v-2zm0-4H3v2h11V6zm4 8v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zM3 16h7v-2H3v2z"/></svg>
+           Toplu Ekle
+        </button>
+      </div>
+
       <div class="form-group">
         <label class="form-label">Durum</label>
         <select class="form-select" id="songStatus">
@@ -763,6 +768,15 @@
     function openModal(id = null) {
       document.getElementById('modalOverlay').classList.add('active');
       const s = songs.find(x => x.id === id);
+      
+      const modalTitle = document.getElementById('modalTitle');
+      const modalTopActions = document.getElementById('modalTopActions');
+      if (modalTitle) modalTitle.innerText = id ? 'Parçayı Düzenle' : 'Yeni Parça Ekle';
+      
+      if (modalTopActions) {
+         const bulkBtn = modalTopActions.querySelector('button');
+         if (bulkBtn) bulkBtn.style.display = id ? 'none' : 'flex';
+      }
       document.getElementById('songId').value = id || '';
       document.getElementById('songName').value = s ? s.name : '';
       document.getElementById('songArtist').value = s ? s.artist : '';
