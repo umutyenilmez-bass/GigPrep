@@ -48,6 +48,7 @@
     .mobile-tabs { display: none; background: rgba(15,15,16,0.95); border-top: 1px solid var(--border); padding-bottom: env(safe-area-inset-bottom); z-index: 100; flex-shrink: 0; }
     .mobile-tab { flex: 1; text-align: center; padding: 16px 4px; font-size: 11px; font-family: 'Inter', sans-serif; font-weight: 600; color: var(--text-3); cursor: pointer; border-top: 2px solid transparent; transition: all 0.2s; text-transform: uppercase; letter-spacing: 0.5px; }
     .mobile-tab.active { color: var(--accent); border-top-color: var(--accent); background: rgba(255, 179, 0, 0.05); }
+    .mobile-tab.drag-over { background: rgba(255, 179, 0, 0.25); color: var(--text); border-top-color: var(--accent); transform: scale(1.05); font-weight: 700; z-index: 10; box-shadow: 0 -4px 12px rgba(255, 179, 0, 0.2); }
     
     @media(max-width: 767px) {
       .mobile-tabs { display: flex; }
@@ -55,7 +56,11 @@
       .column { display: flex; flex: 0 0 100vw; max-width: 100vw; border-radius: 0; border: none; }
     }
     
-    .col-header { padding: 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.2); flex-shrink: 0; }
+    .col-header { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; background: rgba(0,0,0,0.2); flex-shrink: 0; }
+    .col-header-top { display: flex; justify-content: space-between; align-items: center; width: 100%; }
+    .search-input { width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--text); padding: 8px 12px; border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 13px; outline: none; transition: border-color 0.2s; }
+    .search-input:focus { border-color: var(--accent); background: var(--surface-2); }
+    .search-input::placeholder { color: var(--text-3); }
     .col-title { font-family: 'Inter', sans-serif; font-weight: 700; font-size: 15px; }
     .col-count { font-family: 'DM Mono', monospace; font-size: 13px; font-weight: 500; color: var(--text-2); background: var(--surface-2); padding: 2px 10px; border-radius: 12px; }
     
@@ -120,36 +125,50 @@
       <div style="line-height: 1;">GIG<span>PREP</span></div>
     </div>
     <div style="display:flex; gap:12px; align-items:center;">
+      <button id="btn-undo" onclick="undo()" style="background:transparent; color:var(--text-2); border:none; padding:0; height:36px; width:36px; border-radius:18px; display:flex; align-items:center; justify-content:center; font-size:18px; cursor:pointer; transition:all 0.2s; opacity:0.3; pointer-events:none;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'" title="Geri Al">↩️</button>
+      <button id="btn-redo" onclick="redo()" style="background:transparent; color:var(--text-2); border:none; padding:0; height:36px; width:36px; border-radius:18px; display:flex; align-items:center; justify-content:center; font-size:18px; cursor:pointer; transition:all 0.2s; opacity:0.3; pointer-events:none;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'" title="İleri Al">↪️</button>
       <button onclick="openSettingsModal()" style="background:transparent; color:var(--text-2); border:none; padding:0; height:36px; width:36px; border-radius:18px; display:flex; align-items:center; justify-content:center; font-size:18px; cursor:pointer; transition:all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'" title="Ayarlar">⚙️</button>
-      <button onclick="openBulkModal()" style="background:transparent; color:var(--text-2); border:1px solid var(--border); padding:0 16px; height:36px; border-radius:18px; font-family:'Inter', sans-serif; font-size:12px; font-weight:600; cursor:pointer; transition:all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'">Toplu Ekle</button>
+      <button onclick="openBulkModal()" style="background:transparent; color:var(--text-2); border:1px solid var(--border); padding:0 16px; height:36px; border-radius:18px; font-family:'Inter', sans-serif; font-size:12px; font-weight:600; cursor:pointer; transition:all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'" title="Toplu Ekle">Toplu Ekle</button>
       <button class="btn-add" onclick="openModal()">+</button>
     </div>
   </header>
 
   <main class="board">
     <div class="column" id="col-pool" data-status="pool">
-      <div class="col-header"><div class="col-title">Havuz</div><div class="col-count">0</div></div>
+      <div class="col-header">
+        <div class="col-header-top"><div class="col-title">Havuz</div><div class="col-count">0</div></div>
+        <input type="text" class="search-input" placeholder="Parça veya sanatçı ara..." oninput="filterColumn('pool', this.value)">
+      </div>
       <div class="col-content" ondragover="allowDrop(event)" ondragleave="dragLeave(event)" ondrop="drop(event, 'pool')"></div>
     </div>
     <div class="column" id="col-wip" data-status="wip">
-      <div class="col-header"><div class="col-title" style="color:var(--blue)">Çalışılıyor</div><div class="col-count">0</div></div>
+      <div class="col-header">
+        <div class="col-header-top"><div class="col-title" style="color:var(--blue)">Çalışılıyor</div><div class="col-count">0</div></div>
+        <input type="text" class="search-input" placeholder="Parça veya sanatçı ara..." oninput="filterColumn('wip', this.value)">
+      </div>
       <div class="col-content" ondragover="allowDrop(event)" ondragleave="dragLeave(event)" ondrop="drop(event, 'wip')"></div>
     </div>
     <div class="column" id="col-ready" data-status="ready">
-      <div class="col-header"><div class="col-title" style="color:var(--green)">Hazır</div><div class="col-count">0</div></div>
+      <div class="col-header">
+        <div class="col-header-top"><div class="col-title" style="color:var(--green)">Hazır</div><div class="col-count">0</div></div>
+        <input type="text" class="search-input" placeholder="Parça veya sanatçı ara..." oninput="filterColumn('ready', this.value)">
+      </div>
       <div class="col-content" ondragover="allowDrop(event)" ondragleave="dragLeave(event)" ondrop="drop(event, 'ready')"></div>
     </div>
     <div class="column" id="col-review" data-status="review">
-      <div class="col-header"><div class="col-title" style="color:var(--red)">⚠️ Gözden Geçir</div><div class="col-count">0</div></div>
+      <div class="col-header">
+        <div class="col-header-top"><div class="col-title" style="color:var(--red)">⚠️ Gözden Geçir</div><div class="col-count">0</div></div>
+        <input type="text" class="search-input" placeholder="Parça veya sanatçı ara..." oninput="filterColumn('review', this.value)">
+      </div>
       <div class="col-content" ondragover="allowDrop(event)" ondragleave="dragLeave(event)" ondrop="drop(event, 'review')"></div>
     </div>
   </main>
 
   <div class="mobile-tabs">
-    <div class="mobile-tab active" data-tab="pool" onclick="switchTab('pool')" ondragover="allowDrop(event)" ondrop="drop(event, 'pool')">Havuz</div>
-    <div class="mobile-tab" data-tab="wip" onclick="switchTab('wip')" ondragover="allowDrop(event)" ondrop="drop(event, 'wip')">Çalışılıyor</div>
-    <div class="mobile-tab" data-tab="ready" onclick="switchTab('ready')" ondragover="allowDrop(event)" ondrop="drop(event, 'ready')">Hazır</div>
-    <div class="mobile-tab" data-tab="review" onclick="switchTab('review')" ondragover="allowDrop(event)" ondrop="drop(event, 'review')">Gözden Geçir</div>
+    <div class="mobile-tab active" data-tab="pool" onclick="switchTab('pool')" ondragover="allowDrop(event)" ondragleave="dragLeave(event)" ondrop="drop(event, 'pool')">Havuz</div>
+    <div class="mobile-tab" data-tab="wip" onclick="switchTab('wip')" ondragover="allowDrop(event)" ondragleave="dragLeave(event)" ondrop="drop(event, 'wip')">Çalışılıyor</div>
+    <div class="mobile-tab" data-tab="ready" onclick="switchTab('ready')" ondragover="allowDrop(event)" ondragleave="dragLeave(event)" ondrop="drop(event, 'ready')">Hazır</div>
+    <div class="mobile-tab" data-tab="review" onclick="switchTab('review')" ondragover="allowDrop(event)" ondragleave="dragLeave(event)" ondrop="drop(event, 'review')">Gözden Geçir</div>
   </div>
 
   <div class="modal-overlay" id="modalOverlay" onclick="if(event.target===this) closeModal()">
@@ -375,44 +394,62 @@
       else switchTab(tabs[currentBoardIdx]); // snap back if at start
     }
 
-    let autoScrollDragTimer = null;
+    let dragScrollAnimation = null;
+    let dragScrollVelocity = 0;
+    
     document.addEventListener('dragover', (e) => {
         if (window.innerWidth >= 768) return;
         
         const x = e.clientX || (e.touches && e.touches.length ? e.touches[0].clientX : 0);
         if (!x) return;
         
-        const threshold = window.innerWidth * 0.15;
+        const edgeSize = window.innerWidth * 0.25; 
         
-        if (x < threshold) {
-            if (!autoScrollDragTimer) {
-                autoScrollDragTimer = setTimeout(() => { goToPrevTab(); autoScrollDragTimer = null; }, 600);
-            }
-        } else if (x > window.innerWidth - threshold) {
-            if (!autoScrollDragTimer) {
-                autoScrollDragTimer = setTimeout(() => { goToNextTab(); autoScrollDragTimer = null; }, 600);
-            }
+        if (x < edgeSize) {
+            dragScrollVelocity = ((edgeSize - x) / edgeSize) * 25; 
+        } else if (x > window.innerWidth - edgeSize) {
+            dragScrollVelocity = -(((x - (window.innerWidth - edgeSize)) / edgeSize) * 25);
         } else {
-            if (autoScrollDragTimer) {
-                clearTimeout(autoScrollDragTimer);
-                autoScrollDragTimer = null;
+            dragScrollVelocity = 0;
+        }
+        
+        if (dragScrollVelocity !== 0 && !dragScrollAnimation) {
+            const board = document.querySelector('.board');
+            board.style.transition = 'none';
+            function animateScroll() {
+                if (dragScrollVelocity === 0) {
+                    dragScrollAnimation = null;
+                    return;
+                }
+                currentTranslateX += dragScrollVelocity;
+                
+                if (currentTranslateX > 0) currentTranslateX = 0;
+                if (currentTranslateX < -(3 * window.innerWidth)) currentTranslateX = -(3 * window.innerWidth);
+                
+                board.style.transform = `translateX(${currentTranslateX}px)`;
+                
+                currentBoardIdx = Math.round(Math.abs(currentTranslateX) / window.innerWidth);
+                const tabs = ['pool', 'wip', 'ready', 'review'];
+                document.querySelectorAll('.mobile-tab').forEach(t => t.classList.remove('active'));
+                const targetTab = document.querySelector(`.mobile-tab[data-tab="${tabs[currentBoardIdx]}"]`);
+                if (targetTab) targetTab.classList.add('active');
+                
+                dragScrollAnimation = requestAnimationFrame(animateScroll);
             }
+            dragScrollAnimation = requestAnimationFrame(animateScroll);
         }
     });
 
-    document.addEventListener('dragend', () => {
-        if (autoScrollDragTimer) {
-            clearTimeout(autoScrollDragTimer);
-            autoScrollDragTimer = null;
+    function stopDragScroll() {
+        dragScrollVelocity = 0;
+        if (window.innerWidth < 768) {
+            const tabs = ['pool', 'wip', 'ready', 'review'];
+            switchTab(tabs[currentBoardIdx]);
         }
-    });
-    
-    document.addEventListener('drop', () => {
-        if (autoScrollDragTimer) {
-            clearTimeout(autoScrollDragTimer);
-            autoScrollDragTimer = null;
-        }
-    });
+    }
+
+    document.addEventListener('dragend', stopDragScroll);
+    document.addEventListener('drop', stopDragScroll);
 
     document.getElementById('col-pool').classList.add('active');
 
@@ -462,8 +499,86 @@
         }
     });
 
-    function saveToLocal() { localStorage.setItem('gigprep_songs', JSON.stringify(songs)); }
-    if (migrated) saveToLocal();
+    let undoStack = [];
+    let redoStack = [];
+    const MAX_HISTORY = 50;
+
+    function pushStateToHistory(stateStr) {
+        if (undoStack.length === 0 || undoStack[undoStack.length - 1] !== stateStr) {
+            undoStack.push(stateStr);
+            if (undoStack.length > MAX_HISTORY) undoStack.shift();
+            redoStack = [];
+            updateUndoRedoUI();
+        }
+    }
+
+    function saveToLocal(skipHistory = false) { 
+        const stateStr = JSON.stringify(songs);
+        localStorage.setItem('gigprep_songs', stateStr); 
+        if (!skipHistory) pushStateToHistory(stateStr);
+    }
+    
+    function undo() {
+        if (undoStack.length > 1) {
+            const currentState = undoStack.pop();
+            redoStack.push(currentState);
+            const previousState = undoStack[undoStack.length - 1];
+            songs = JSON.parse(previousState);
+            saveToLocal(true);
+            renderBoard();
+            updateUndoRedoUI();
+        }
+    }
+
+    function redo() {
+        if (redoStack.length > 0) {
+            const nextState = redoStack.pop();
+            undoStack.push(nextState);
+            songs = JSON.parse(nextState);
+            saveToLocal(true);
+            renderBoard();
+            updateUndoRedoUI();
+        }
+    }
+
+    function updateUndoRedoUI() {
+        const btnUndo = document.getElementById('btn-undo');
+        const btnRedo = document.getElementById('btn-redo');
+        if (btnUndo) {
+            btnUndo.style.opacity = undoStack.length > 1 ? '1' : '0.3';
+            btnUndo.style.pointerEvents = undoStack.length > 1 ? 'auto' : 'none';
+        }
+        if (btnRedo) {
+            btnRedo.style.opacity = redoStack.length > 0 ? '1' : '0.3';
+            btnRedo.style.pointerEvents = redoStack.length > 0 ? 'auto' : 'none';
+        }
+    }
+
+    if (migrated) saveToLocal(); else pushStateToHistory(JSON.stringify(songs));
+
+    // Mobile Back Button Interceptor
+    history.replaceState({ id: 'main' }, "", "");
+    history.pushState({ id: 'dummy' }, "", "");
+
+    window.addEventListener('popstate', (e) => {
+        let handled = false;
+        
+        const openModals = document.querySelectorAll('.modal-overlay.active');
+        if (openModals.length > 0) {
+            openModals.forEach(m => m.classList.remove('active'));
+            handled = true;
+        } else if (window.innerWidth < 768 && currentBoardIdx !== 0) {
+            switchTab('pool');
+            handled = true;
+        }
+        
+        if (handled) {
+            history.pushState({ id: 'dummy' }, "", "");
+        } else {
+            // Unhandled -> User exits.
+            history.back();
+        }
+    });
 
     function setReady(id) {
       const song = songs.find(x => x.id === id);
@@ -481,6 +596,22 @@
         saveToLocal();
         renderBoard();
       }
+    }
+
+    function filterColumn(status, query) {
+      const q = query.toLowerCase();
+      const container = document.querySelector('#col-' + status + ' .col-content');
+      const cards = container.querySelectorAll('.card');
+      cards.forEach(card => {
+         const id = card.dataset.id;
+         const song = songs.find(x => x.id === id);
+         const searchStr = song ? (song.name + ' ' + (song.artist || '')).toLowerCase() : '';
+         if (searchStr.includes(q)) {
+             card.style.display = '';
+         } else {
+             card.style.display = 'none';
+         }
+      });
     }
 
     function renderBoard() {
@@ -585,6 +716,11 @@
           `;
           container.appendChild(card);
         });
+        
+        const searchInput = document.querySelector(`#col-${status} .search-input`);
+        if (searchInput && searchInput.value) {
+           filterColumn(status, searchInput.value);
+        }
       }
     }
 
@@ -875,7 +1011,7 @@
     }
     
     function getDragAfterElement(container, y, dragging) {
-      const draggableElements = [...container.querySelectorAll('.card:not(.dragging)')];
+      const draggableElements = [...container.querySelectorAll('.card:not(.dragging)')].filter(c => c.style.display !== 'none');
       
       let cursorY = y;
       if (dragging && dragging.dataset.dragOffsetY) {
@@ -906,6 +1042,8 @@
       const container = ev.currentTarget;
       container.classList.add('drag-over');
       
+      if (!container.classList.contains('col-content')) return;
+
       const dragging = document.querySelector('.dragging');
       if (!dragging) return;
 
