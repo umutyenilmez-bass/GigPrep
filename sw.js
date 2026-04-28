@@ -1,5 +1,5 @@
-const CACHE = 'gigprep-v1';
-const ASSETS = ['./index.html', './logo.png', './manifest.json', './friz-quadrata-regular.ttf', './friz-quadrata-bold-italic.ttf'];
+const CACHE = 'gigprep-v2';
+const ASSETS = ['./index.html', './logo.png?v=2', './manifest.json', './friz-quadrata-regular.ttf', './friz-quadrata-bold-italic.ttf'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).catch(() => {}));
