@@ -11,8 +11,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     @font-face {
-      font-family: 'FrizQuadrata';
-      src: url('friz-quadrata-regular.ttf') format('truetype');
+      font-family: 'Albertus';
+      src: url('Albertus Medium Regular.ttf') format('truetype');
       font-weight: 400;
     }
     :root {
@@ -39,7 +39,7 @@
     @media(max-width: 450px) {
         .header { padding: 12px 12px; padding-top: calc(12px + env(safe-area-inset-top)); }
     }
-    .header-title { font-family: 'FrizQuadrata', serif; font-size: 22px; letter-spacing: 1px; color: var(--text); }
+    .header-title { font-family: 'Albertus', serif; font-size: 26px; letter-spacing: 1px; color: var(--text); text-transform: uppercase; }
     .header-title span { color: var(--accent); }
     .btn-add { background: var(--accent); color: #000; border: none; width: 40px; height: 40px; border-radius: 50%; font-size: 28px; font-weight: 400; display: flex; align-items: center; justify-content: center; cursor: pointer; line-height: 1; box-shadow: 0 4px 12px rgba(255, 179, 0, 0.3); }
     
@@ -179,7 +179,7 @@
       <input type="hidden" id="songId">
       
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;" id="modalTopActions">
-        <h2 id="modalTitle" style="margin:0; font-family:'FrizQuadrata',serif; font-size:20px;">Yeni Parça Ekle</h2>
+        <h2 id="modalTitle" style="margin:0; font-family:'Albertus',serif; font-size:22px; text-transform:uppercase;">Yeni Parça Ekle</h2>
         <button onclick="closeModal(); openBulkModal();" style="background:rgba(255,255,255,0.05); color:var(--text); border:1px solid var(--border); padding:6px 12px; border-radius:16px; font-size:12px; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:6px;">
            <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M14 10H3v2h11v-2zm0-4H3v2h11V6zm4 8v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zM3 16h7v-2H3v2z"/></svg>
            Toplu Ekle
